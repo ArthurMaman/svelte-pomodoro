@@ -231,12 +231,12 @@
       <button class="w-20" on:click={end}>End</button>
     </div>
     <h2 class="p-1">
-      You worked during {workedPeriod} period{workedPeriod > 1 ? 's' : ''}.
+      You worked for {workedPeriod} period{workedPeriod > 1 ? 's' : ''}.
       <br />
       {workedPeriod > 0 ? `That's ${workedPeriod * workTime} minutes !` : ''}
     </h2>
     <h2 class="p-1">
-      You rested during {restedPeriod} period{restedPeriod > 1 ? 's' : ''}.
+      You rested for {restedPeriod} period{restedPeriod > 1 ? 's' : ''}.
       <br />
       {restedPeriod > 0 ? `It's only ${restedPeriod * restTime} minutes !` : ''}
     </h2>
