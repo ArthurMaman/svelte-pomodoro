@@ -1,5 +1,28 @@
 <script>
   import Tailwindcss from "./Tailwindcss.svelte";
+  import { fly } from "svelte/transition";
+
+  function typewriter(node, { speed = 50 }) {
+    const valid =
+      node.childNodes.length === 1 && node.childNodes[0].nodeType === 3;
+
+    if (!valid) {
+      throw new Error(
+        `This transition only works on elements with a single text node child`
+      );
+    }
+
+    const text = node.textContent;
+    const duration = text.length * speed;
+
+    return {
+      duration,
+      tick: t => {
+        const i = ~~(text.length * t);
+        node.textContent = text.slice(0, i);
+      }
+    };
+  }
 
   const getPointOnCircle = (angle, center, rayon) => {
     const radAngle = (angle * Math.PI) / 180;
@@ -67,16 +90,23 @@
   $: deltaAngle = 0;
   $: workedPeriod = 0;
   $: restedPeriod = 0;
+  $: timeLeft = workTime;
 
-  $: timer = '';
+  $: timer = "";
+  $: timer2 = "";
   $: running = false;
   const startWorking = currentAngleP => {
-    if(running === true) return;
+    if (running === true) return;
+    timeLeft = workTime;
     running = true;
     innerPathAnimated = innerPath;
     disabled = true;
     deltaAngle = (outerAngle * 50) / (workTime * 60000);
     currentAngle = currentAngleP;
+    timer2 = window.setInterval(()=>{
+        timeLeft = timeLeft - 1;
+        console.log(timeLeft);
+    }, 60000)
     timer = window.setInterval(() => {
       currentAngle = currentAngle - deltaAngle;
       outerPathAnimated = createArc(
@@ -87,14 +117,15 @@
       );
       if (currentAngle >= 0) {
         workedPeriod = workedPeriod + 1;
-        window.clearInterval(timer)
-        startResting(innerAngle);        
+        window.clearInterval(timer);
+        startResting(innerAngle);
       }
     }, 50);
   };
 
   const startResting = currentAngleP => {
     outerPathAnimated = outerPath;
+    timeLeft = restTime;
     deltaAngle = (innerAngle * 50) / (restTime * 60000);
     currentAngle = currentAngleP;
     timer = window.setInterval(() => {
@@ -113,12 +144,12 @@
       }
     }, 50);
   };
-  
+
   $: paused = false;
   const pause = () => {
     if (!paused) {
-      paused = true
-      window.clearInterval(timer)
+      paused = true;
+      window.clearInterval(timer);
     } else {
       paused = false;
       if (workedPeriod > restedPeriod) {
@@ -132,6 +163,7 @@
 
   const end = () => {
     window.clearInterval(timer);
+    window.clearInterval(timer2)
     outerPathAnimated = outerPath;
     innerPathAnimated = innerPath;
     workedPeriod = 0;
@@ -140,14 +172,13 @@
     running = false;
     disabled = false;
     alert("Good work !");
-  }
-
+  };
 </script>
 
 <style>
   :global(body) {
     background: #e1f4e3;
-    color: #885053;
+    color: black;
   }
 
   button {
@@ -156,7 +187,7 @@
 
   input {
     border: none;
-    border-bottom: #885053 1px solid;
+    border-bottom: black 1px solid;
     background-color: #e1f4e3;
     border-radius: 0;
     font-weight: bold;
@@ -174,7 +205,7 @@
 <Tailwindcss />
 <div class="flex justify-around">
   <div class="flex flex-col max-w-lg align-middle object-right">
-    <h1 class="object-top self-center pb-5 pt-4 font-bold text-2xl">
+    <h1 class="object-top self-center pb-5 pt-4 font-bold text-2xl italic">
       Svelte Pomodoro
     </h1>
     <div class="p-2 self-center">
@@ -223,11 +254,21 @@
         stroke-width="25px"
         stroke-linecap="round" />
     </svg>
+    {#if running}
+      <div
+        class="font-mono font-extrabold text-3xl text-center"
+        in:fly={{ y: 100, duration: 750 }}>
+        <h1><span>{timeLeft}</span> min left</h1>
+        <h1>You're doing great!</h1>
+      </div>
+    {/if}
     <div class="self-center p-10">
       <button class="w-20" on:click={() => startWorking(outerAngle)}>
         Start
       </button>
-      <button class="w-20" on:click={pause}>{!paused ? 'Pause' : 'Resume'}</button>
+      <button class="w-20" on:click={pause}>
+        {!paused ? 'Pause' : 'Resume'}
+      </button>
       <button class="w-20" on:click={end}>End</button>
     </div>
     <h2 class="p-1">
@@ -240,6 +281,6 @@
       <br />
       {restedPeriod > 0 ? `It's only ${restedPeriod * restTime} minutes !` : ''}
     </h2>
-    <h2 class="p-1">You nice, keep going.</h2>
+    <h2 class="p-1 text-center">You nice, keep going.</h2>
   </div>
 </div>
