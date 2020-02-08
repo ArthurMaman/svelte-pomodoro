@@ -29,28 +29,6 @@
     import Tailwindcss from "./Tailwindcss.svelte";
     import { fly } from "svelte/transition";
 
-    function typewriter(node, { speed = 50 }) {
-        const valid =
-            node.childNodes.length === 1 && node.childNodes[0].nodeType === 3;
-
-        if (!valid) {
-            throw new Error(
-                `This transition only works on elements with a single text node child`
-            );
-        }
-
-        const text = node.textContent;
-        const duration = text.length * speed;
-
-        return {
-            duration,
-            tick: t => {
-                const i = ~~(text.length * t);
-                node.textContent = text.slice(0, i);
-            }
-        };
-    }
-
     const getPointOnCircle = (angle, center, rayon) => {
         const radAngle = (angle * Math.PI) / 180;
         return {
@@ -69,8 +47,12 @@
     };
 
     const handleRestTimeChange = e => {
-        if (e.target.value !== 0 && e.target.value < workTime) {
+        const value = parseInt(e.target.value);
+        if (value < workTime && value > 0) {
             restTime = e.target.value;
+        } else if (value <= 0) {
+            alert("You should rest a little");
+            tmpRest = restTime;
         } else {
             alert("You need to work more than you rest :(");
             tmpRest = restTime;
@@ -109,63 +91,69 @@
     );
 
     let disabled = false;
+    let running = false;
+
     let workedPeriod = 0;
     let restedPeriod = 0;
-    $: innerPathAnimated = innerPath;
-    $: outerPathAnimated = outerPath;
-    $: currentAngle = outerAngle;
-    let deltaAngle = 0;
-    let timeLeft = workTime;
 
     let timer = "";
     let timer2 = "";
-    let running = false;
-    const startWorking = currentAngleP => {
-        if (running === true) return;
-        timeLeft = workTime;
+
+    let interval = 50;
+    $: workPas = interval / (workTime * 60 * 1000);
+    $: restPas = interval / (restTime * 60 * 1000);
+    let restProgression = 1;
+    let workProgression = 1;
+    let working = true;
+
+    $: workLeft = Math.round(workTime * workProgression);
+    $: restLeft = Math.round(restTime * restProgression);
+
+    $: currentWorkPath = createArc(
+        startOuterAngle,
+        startOuterAngle + outerAngle * workProgression,
+        { x: 200, y: 200 },
+        150
+    );
+
+    $: currentRestPath = createArc(
+        startInnerAngle,
+        startInnerAngle + innerAngle * restProgression,
+        { x: 200, y: 200 },
+        110
+    );
+
+    const begin = () => {
+        if (running) return;
         running = true;
-        innerPathAnimated = innerPath;
-        disabled = true;
-        deltaAngle = (outerAngle * 50) / (workTime * 60000);
-        currentAngle = currentAngleP;
-        timer2 = window.setInterval(() => {
-            timeLeft = timeLeft - 1;
-            console.log(timeLeft);
-        }, 60000);
-        timer = window.setInterval(() => {
-            currentAngle = currentAngle - deltaAngle;
-            outerPathAnimated = createArc(
-                startOuterAngle,
-                startOuterAngle + currentAngle,
-                { x: 200, y: 200 },
-                150
-            );
-            if (currentAngle >= 0) {
-                workedPeriod = workedPeriod + 1;
-                window.clearInterval(timer);
-                startResting(innerAngle);
-            }
-        }, 50);
+        startWorking();
     };
 
-    const startResting = currentAngleP => {
-        outerPathAnimated = outerPath;
-        timeLeft = restTime;
-        deltaAngle = (innerAngle * 50) / (restTime * 60000);
-        currentAngle = currentAngleP;
+    const startWorking = () => {
+        running = true;
+        disabled = true;
+        working = true;
         timer = window.setInterval(() => {
-            currentAngle = currentAngle - deltaAngle;
-            innerPathAnimated = createArc(
-                startInnerAngle,
-                startInnerAngle + currentAngle,
-                { x: 200, y: 200 },
-                110
-            );
-            if (currentAngle >= 0) {
-                restedPeriod = restedPeriod + 1;
+            workProgression = workProgression - workPas;
+            if (workProgression <= 0) {
+                workedPeriod = workedPeriod + 1;
+                restProgression = 1;
                 window.clearInterval(timer);
+                startResting();
+            }
+        }, interval);
+    };
+
+    const startResting = () => {
+        working = false;
+        timer = window.setInterval(() => {
+            restProgression = restProgression - restPas;
+            if (restProgression <= 0) {
+                restedPeriod = restedPeriod + 1;
                 running = false;
-                startWorking(outerAngle);
+                workProgression = 1;
+                window.clearInterval(timer);
+                startWorking();
             }
         }, 50);
     };
@@ -175,13 +163,13 @@
         if (!paused) {
             paused = true;
             window.clearInterval(timer);
+            window.clearInterval(timer2);
         } else {
             paused = false;
             if (workedPeriod > restedPeriod) {
-                startResting(currentAngle);
+                startResting();
             } else {
-                running = false;
-                startWorking(currentAngle);
+                startWorking();
             }
         }
     };
@@ -189,8 +177,8 @@
     const end = () => {
         window.clearInterval(timer);
         window.clearInterval(timer2);
-        outerPathAnimated = outerPath;
-        innerPathAnimated = innerPath;
+        workProgression = 1;
+        restProgression = 1;
         workedPeriod = 0;
         restedPeriod = 0;
         paused = false;
@@ -200,9 +188,18 @@
     };
 </script>
 
+<svelte:head>
+    <title>Svelte Pomodoro</title>
+    <meta
+        name="description"
+        content="A simple, fast, no troubles, pomodoro timer"
+    />
+    <meta name="keywords" content="Productivity, Procrastination" />
+    <meta name="author" content="Arthur Maman" />
+</svelte:head>
 <Tailwindcss />
 <div class="flex justify-around">
-    <div class="flex flex-col max-w-lg align-middle object-right">
+    <div class="flex flex-col w-full max-w-lg align-middle object-right">
         <h1 class="object-top self-center pb-5 pt-4 font-bold text-2xl italic">
             Svelte Pomodoro
         </h1>
@@ -228,7 +225,7 @@
             />
             <h2 class="inline-block w-10">min</h2>
         </div>
-        <svg viewBox="0 0 400 400" class="self-center">
+        <svg viewBox="0 0 400 400" class="self-center max-w-md">
             <path
                 d="{innerPath}"
                 stroke="#fe8f88"
@@ -244,14 +241,14 @@
                 stroke-linecap="round"
             ></path>
             <path
-                d="{innerPathAnimated !== 'null' ? innerPathAnimated : 'M0 0'}"
+                d="{currentRestPath}"
                 stroke="#FE5F55"
                 fill="none"
                 stroke-width="25px"
                 stroke-linecap="round"
             ></path>
             <path
-                d="{outerPathAnimated || ''}"
+                d="{currentWorkPath}"
                 stroke="#777DA7"
                 fill="none"
                 stroke-width="25px"
@@ -263,17 +260,23 @@
                 class="font-mono font-extrabold text-3xl text-center"
                 in:fly="{{ y: 100, duration: 750 }}"
             >
-                <h1>
-                    <span>{timeLeft}</span>
-                    min left
-                </h1>
-                <h1>You're doing great!</h1>
+                {#if working}
+                    <h1>
+                        <span>{workLeft === 0 ? 'Less than one' : workLeft}</span>
+                        min left
+                    </h1>
+                    <h1>You're doing great!</h1>
+                {:else}
+                    <h1>
+                        <span>{restLeft === 0 ? 'Less than one' : restLeft}</span>
+                        min left
+                    </h1>
+                    <h1>Breathe in. Breathe out.</h1>
+                {/if}
             </div>
         {/if}
         <div class="self-center p-10">
-            <button class="w-20" on:click="{() => startWorking(outerAngle)}">
-                Start
-            </button>
+            <button class="w-20" on:click="{begin}">Start</button>
             <button class="w-20" on:click="{pause}">
                 {!paused ? 'Pause' : 'Resume'}
             </button>
