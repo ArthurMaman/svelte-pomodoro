@@ -1,30 +1,3 @@
-<style>
-    :global(body) {
-        background: #e1f4e3;
-        color: black;
-    }
-
-    button {
-        background-color: white;
-    }
-
-    input {
-        border: none;
-        border-bottom: black 1px solid;
-        background-color: #e1f4e3;
-        border-radius: 0;
-        font-weight: bold;
-    }
-
-    .work_time {
-        color: #777da7;
-    }
-
-    .rest_time {
-        color: #fe5f55;
-    }
-</style>
-
 <script>
     import Tailwindcss from "./Tailwindcss.svelte";
     import { fly } from "svelte/transition";
@@ -51,10 +24,10 @@
         if (value < workTime && value > 0) {
             restTime = e.target.value;
         } else if (value <= 0) {
-            alert("You should rest a little");
+            openPopup("You should rest at least a little.", ":(")
             tmpRest = restTime;
         } else {
-            alert("You need to work more than you rest :(");
+            openPopup("You should work more than you rest.", "Relou")
             tmpRest = restTime;
         }
     };
@@ -63,7 +36,7 @@
         if (e.target.value !== 0 && e.target.value > restTime) {
             workTime = e.target.value;
         } else {
-            alert("You need to work more than you rest :(");
+            openPopup("You should work more than you rest.", "Relou")
             tmpWork = workTime;
         }
     };
@@ -184,8 +157,18 @@
         paused = false;
         running = false;
         disabled = false;
-        alert("Good work !");
+        openPopup("Today was a good work session.", "Bye !")
     };
+
+    let popup = false;
+    let popupText = '';
+    let popupButton = '';
+    const openPopup = (txt, btn) => {
+        popupText = txt;
+        popupButton = btn;
+        popup = true;
+    }
+    const closePopup = () => popup = false;
 </script>
 
 <svelte:head>
@@ -200,9 +183,15 @@
 <Tailwindcss />
 <div class="flex justify-around">
     <div class="flex flex-col w-full max-w-lg align-middle object-right">
-        <h1 class="object-top self-center pb-5 pt-4 font-bold text-2xl italic">
+        <h1 class="object-top self-center pb-5 pt-5 font-bold text-2xl italic">
             Svelte Pomodoro
         </h1>
+        {#if popup}
+        <div transition:fly="{{ y: -100, duration: 300 }}" class="bg-white rounded-lg flex flex-row content-between max-w-sm w-full self-center items-center justify-around h-20 mb-5">
+            <div class="whitespace-pre-wrap text-center font-mono text-base m-6">{popupText}</div>
+            <button class="h-10 w-16 m-6" on:click="{closePopup}">{popupButton}</button>
+        </div>
+        {/if}
         <div class="p-2 self-center">
             <h2 class="inline-block w-40">Insert working time</h2>
             <input
@@ -225,7 +214,7 @@
             />
             <h2 class="inline-block w-10">min</h2>
         </div>
-        <svg viewBox="0 0 400 400" class="self-center max-w-md">
+        <svg viewBox="0 0 400 400" class="self-center svgBox">
             <path
                 d="{innerPath}"
                 stroke="#fe8f88"
@@ -275,12 +264,12 @@
                 {/if}
             </div>
         {/if}
-        <div class="self-center p-10">
-            <button class="w-20" on:click="{begin}">Start</button>
+        <div class="self-center p-5">
+            <button class="w-20" on:click="{begin}" disabled="{running}">Start</button>
             <button class="w-20" on:click="{pause}">
                 {!paused ? 'Pause' : 'Resume'}
             </button>
-            <button class="w-20" on:click="{end}">End</button>
+            <button class="w-20" on:click="{end}" disabled="{!running}">End</button>
         </div>
         <h2 class="p-1">
             You worked for {workedPeriod} period{workedPeriod > 1 ? 's' : ''}.
@@ -295,3 +284,33 @@
         <h2 class="p-1 text-center">You nice, keep going.</h2>
     </div>
 </div>
+<style>
+    :global(body) {
+        background: #e1f4e3;
+        color: black;
+    }
+
+    button {
+        background-color: white;
+    }
+
+    input {
+        border: none;
+        border-bottom: black 1px solid;
+        background-color: #e1f4e3;
+        border-radius: 0;
+        font-weight: bold;
+    }
+
+    .work_time {
+        color: #777da7;
+    }
+
+    .rest_time {
+        color: #fe5f55;
+    }
+
+    .svgBox {
+        max-height: 400px;
+    }
+</style>
